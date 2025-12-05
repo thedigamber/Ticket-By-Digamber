@@ -1,42 +1,52 @@
+import os
 import discord
 from discord.ext import commands
-import os
 from flask import Flask
 from threading import Thread
 
-# ✅ WEB SERVER FOR RENDER
-app = Flask(__name__)
+# --------------------------
+# Web server (Render)
+# --------------------------
+app = Flask("server")
 
-@app.route('/')
+@app.route("/")
 def home():
     return "✅ Digamber Free Fire Ticket Bot Running"
 
-def run():
+def run_web():
     app.run(host="0.0.0.0", port=8080)
 
 def keep_alive():
-    Thread(target=run).start()
+    Thread(target=run_web).start()
 
-# ✅ BOT SETUP
+# --------------------------
+# Bot Setup
+# --------------------------
 intents = discord.Intents.all()
 
 class DigamberBot(commands.Bot):
-    async def setup_hook(self):
-        # ✅ SAFE WAY TO LOAD COGS (NO LOOP ERROR)
-        await self.load_extension("cogs.ticket")
-        print("✅ Ticket Cog Loaded Successfully")
+    def __init__(self):
+        super().__init__(command_prefix="!", intents=intents, application_id=None)  # application_id optional
+        # ensure tree sync controlled by setup_hook
 
-bot = DigamberBot(command_prefix="!", intents=intents)
+    async def setup_hook(self):
+        # load cogs safely
+        await self.load_extension("cogs.ticket")
+        # sync commands to guilds on first load (defer global if you want)
+        # We DO NOT automatically call bot.tree.sync() globally here to avoid long delays.
+        print("✅ Cogs loaded.")
+
+bot = DigamberBot()
 
 @bot.event
 async def on_ready():
-    print(f"✅ Bot Online As: {bot.user}")
+    print(f"✅ Bot ready as: {bot.user} (ID: {bot.user.id})")
 
-# ✅ START WEB + BOT
+# Start webserver and run bot
 keep_alive()
 
 TOKEN = os.getenv("TOKEN")
 if not TOKEN:
-    raise RuntimeError("❌ TOKEN environment variable not set!")
+    raise RuntimeError("TOKEN env var not set. Add TOKEN to environment variables on Render.")
 
 bot.run(TOKEN)
